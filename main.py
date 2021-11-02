@@ -1,5 +1,6 @@
 import pygame as py
 import os
+import sys
 
 from models.buttons import Buttons
 py.font.init()#per libreria font
@@ -40,8 +41,8 @@ RED_HIT=py.USEREVENT+2#numero serve per differenziare eventi con id
 
 EXITBUTTONPRESSED=py.USEREVENT+3
 RESTARTBUTTONPRESSED=py.USEREVENT+4
-PLAYAGAINBUTTONIMAGE=py.transform.scale(py.image.load(os.path.join("Assets","replaybutton.png")),(120,120))
-EXITGAMEBUTTONIMAGE=py.transform.scale(py.image.load(os.path.join("Assets","quitgamebutton.png")),(120,120))
+PLAYAGAINBUTTONIMAGE=py.transform.scale(py.image.load(os.path.join("Assets","replaybutton.png")),(130,100))
+EXITGAMEBUTTONIMAGE=py.transform.scale(py.image.load(os.path.join("Assets","quitgamebutton.png")),(130,100))
 #uso os perchè in base a so cambiano separatori path
 REDSPACESHIP_IMAGE=py.image.load(os.path.join('Assets','spaceship_red.png')).convert_alpha()
 YELLOWSPACESHIP_IMAGE=py.image.load(os.path.join('Assets','spaceship_yellow.png')).convert_alpha()
@@ -114,17 +115,44 @@ def drawwinner(WIN,wintext,replaybutton,quitgamebutton):
     drawtext=WINNERFONT.render(wintext,True,TEXTCOLOR)
     if(WIN):
         WINDOWSIZE.blit(drawtext,(WIDTH/2-drawtext.get_width()/2,HEIGTH/2-drawtext.get_height()/2))
-        WINDOWSIZE.blit(replaybutton.image,(drawtext.get_width()/2-50,replaybutton.y))
-        WINDOWSIZE.blit(quitgamebutton.image,(drawtext.get_width()/2+50+quitgamebutton.x,quitgamebutton.y))
-    else:
+        replaybuttonrect=replaybutton.image.get_rect()
+        replaybuttonrect.center=(drawtext.get_width()/2-80+80,replaybutton.y+50)
+        WINDOWSIZE.blit(replaybutton.image,replaybuttonrect)#a blit puoi passare un rect che ottengo da immagine facendo metodo get_rect()
+        quitgamebuttonrect=quitgamebutton.image.get_rect()
+        quitgamebuttonrect.center=(drawtext.get_width()/2+80+quitgamebutton.x,quitgamebutton.y+50)
+        WINDOWSIZE.blit(quitgamebutton.image,quitgamebuttonrect)
+        if replaybuttonrect.collidepoint(py.mouse.get_pos()):
+            #so he sono sopra il bottone con il mouse
+            if py.mouse.get_pressed()[0]==1 and replaybutton.everclicked==False:#becca più di un click
+               #tasto di posizione 0 è mouse sinistro se è 1 significa che è premuto
+                replaybutton.everclicked=True
+                #codice per fare nuova partita
+                main()#ricomincio ciclo
+            elif py.mouse.get_pressed()[0]==0:
+                replaybutton.everclicked=False
+               
+           
+        if quitgamebuttonrect.collidepoint(py.mouse.get_pos()):
+            if py.mouse.get_pressed()[0]==1 and quitgamebutton.everclicked==False:
+                quitgamebutton.everclicked=True
+                return True
+                
+    else:#qua posso pure lasciare disegnare delle surface tanto non sono visibili
+        #  e non m'interessa avere metodi collisioni dei rect 
+        #  per sapere se utente è sopra il bottone
         WINDOWSIZE.blit(drawtext,(WIDTH+10,HEIGTH+10))
         WINDOWSIZE.blit(replaybutton.image,(WIDTH+10,HEIGTH+10))
         WINDOWSIZE.blit(quitgamebutton.image,(WIDTH+10,HEIGTH+10))
+        
 
 #questa funzione è il ciclo principale del gioco. tutti i giochi sono cicli
 def main():
     red=py.Rect(700,300,SPACESHIP_WIDTH,SPACESHIP_HEIGTH)
     yellow=py.Rect(100,300,SPACESHIP_WIDTH,SPACESHIP_HEIGTH)
+    replaybutton=Buttons(200,300,PLAYAGAINBUTTONIMAGE)
+    quitgamebutton=Buttons(200,300,EXITGAMEBUTTONIMAGE)
+    replaybuttonrect=PLAYAGAINBUTTONIMAGE.get_rect()
+    quitgamebuttonrect=EXITGAMEBUTTONIMAGE.get_rect()
     redbullets=[]
     yellowbullets=[]
     yellowhealth=100
@@ -132,15 +160,14 @@ def main():
     WIN=False;#se WIN è false i bottoni vengono disegnati fuori dallo schermo. qunado vince qualcuno diventa true e bottoni diventano visibili
     clock=py.time.Clock()
     GAMESONG.play()
-    # songlength=GAMESONG.get_length()
-    # py.mixer.music.load(GAMESONG)
-    # py.mixer.music.play(start=songlength/1000)
+    #capire come far partire canzone da un punto preciso
     rungame=True
-    replaybutton=Buttons(150,300,PLAYAGAINBUTTONIMAGE)
-    quitgamebutton=Buttons(150,300,EXITGAMEBUTTONIMAGE)
+    
    
     
-    while rungame:
+    while rungame and quitgamebutton.everclicked==False:#io so che bottone non è mai stato cliccato. everclicked è true. poi fine gioco
+                                                         #viene visualizzato dialog. premo su quit valore everclicked diventa false. condizione
+                                                         #qui del ciclo non è più vera di conseguenza esce dal ciclo chiudendo il gioco
         clock.tick(FPS)
         actualfps=clock.get_fps()
         for event in py.event.get():#qui catturo l'evento di uscita dal gioco. se esco termino ciclo 
@@ -170,27 +197,28 @@ def main():
             py.mixer.music.unload();
             WIN=True
             wintext="YELLOW WINS"
-            drawwinner(WIN,wintext=wintext,replaybutton=replaybutton,quitgamebutton=quitgamebutton)
-            #break;#chiude il gioco se qualcuno ha vinto
+            drawwinner(WIN,wintext,replaybutton,quitgamebutton)
+            
 
         if yellowhealth<=0:
             GAMESONG.stop()
             py.mixer.music.unload();
             WIN=True
             wintext="RED WINS"
-            drawwinner(WIN,wintext=wintext,replaybutton=replaybutton,quitgamebutton=quitgamebutton)
-            #break;#chiude il gioco se qualcuno ha vinto
+            drawwinner(WIN,wintext,replaybutton,quitgamebutton)
+            
 
         keys_pressed=py.key.get_pressed()
         moveyellow(keys_pressed,yellow)
         movered(keys_pressed,red)
         firebullets(yellowbullets,yellow,redbullets,red)
         drawobjects(red,yellow,redbullets,yellowbullets,redhealth,yellowhealth,actualfps)
-        drawwinner(WIN,wintext=wintext,replaybutton=replaybutton,quitgamebutton=quitgamebutton)
+        drawwinner(WIN,wintext,replaybutton,quitgamebutton)
         py.display.update()
     py.font.quit()
     py.mixer.stop()
     py.quit()
+    sys.exit()
 
 if __name__=="__main__":#serve se importo questo file in un altro file python per non fare eseguire funzione main in altro file
     main()
